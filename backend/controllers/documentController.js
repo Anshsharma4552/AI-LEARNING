@@ -1,6 +1,6 @@
-import Document from "../models/Document";
-import Flashcard from "../models/Flashcard";
-import Quiz from "../models/Quiz";
+import Document from "../models/Document.js";
+import Flashcard from "../models/Flashcard.js";
+import Quiz from "../models/Quiz.js";
 import { extractTextFromPDF} from '../utils/pdfParser.js'
 import { chunkText } from '../utils/testChunker.js'
 import fs from 'fs/promises';

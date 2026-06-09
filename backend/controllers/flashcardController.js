@@ -1,4 +1,4 @@
-import Flashcard from "../models/Flashcard";
+import Flashcard from "../models/Flashcard.js";
 
 
 export const getFlashcards=async (req,res,next)=>{
@@ -76,7 +76,7 @@ export const reviewFlashcard=async (req,res,next)=>{
 export const toggleStarFlashcard=async (req,res,next)=>{
     try{
         const flashcardSet=await Flashcard.findOne({
-            'cards._id':req.params.cardId;
+            'cards._id':req.params.cardId,
             userId:req.user._id
         })
         if(!flashcardSet){

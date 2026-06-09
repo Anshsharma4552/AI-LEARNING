@@ -10,7 +10,8 @@ import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js'
 import documentRoutes from './routes/documentRoutes.js';
-import flashcardRoutes from './routes/flashcardRoutes.js'
+import flashcardRoutes from './routes/flashcardRoutes.js';
+import aiRoutes from './routes/aiRoutes.js'
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +41,9 @@ app.use('/api/auth',authRoutes)
 app.use('/api/document',documentRoutes)
 
 app.use('/api/flashcards',flashcardRoutes)
+
+
+app.use('/api/aiRoutes',aiRoutes)
 
 
 app.use(errorHandler);
