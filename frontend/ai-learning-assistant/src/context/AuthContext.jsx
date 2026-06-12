@@ -27,12 +27,64 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuthStatus = async () => {
-      try {
+    try {
+      const token = localStorage.getItem("token");
+      const userStr = localStorage.getItem("user");
 
+      if (token && userStr) {
+          const userData = JSON.parse(userStr);
+          setUser(userData);
+          setIsAuthenticated(true);
       }
+  } catch (error) {
+      console.error("Auth check failed:", error);
+      logout();
+  } finally {
+      setLoading(false);
+  }
+};
+
+const login = (userData, token) => {
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(userData));
+
+  setUser(userData);
+  setIsAuthenticated(true);
   };
 
-  const value = {};
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    setUser(null);
+    setIsAuthenticated(false);
+
+    window.location.href = "/";
+};
+
+const updateUser = (updatedUserData) => {
+    const newUserData = {
+        ...user,
+        ...updatedUserData,
+    };
+
+    localStorage.setItem(
+        "user",
+        JSON.stringify(newUserData)
+    );
+
+    setUser(newUserData);
+};
+
+  const value = {
+    user,
+    loading,
+    isAuthenticated,
+    login,
+    logout,
+    updateUser,
+    checkAuthStatus
+  };
 
   return (
       <AuthContext.Provider value={value}>
