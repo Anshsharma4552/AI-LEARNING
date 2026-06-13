@@ -108,7 +108,7 @@ const LoginPage = () => {
   
                       {/* Password Field */}
                       <div className="space-y-2">
-                          <label className="block text-sx font-semibold text-slate-700 uppercase tracking-wide">
+                          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide">
                               Password
                           </label>
   
