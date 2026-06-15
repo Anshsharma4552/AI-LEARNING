@@ -17,31 +17,33 @@ const Header = ({ toggleSidebar }) => {
                     <Menu size={24} />
                 </button>
 
-                <div className=""></div>
+                <div className="hidden md:block"></div>
 
-                <div className="">
-                    <button className="">
+                <div className="flex items-center gap-3">
+                    <button className="relative inline-flex items-center justify-center w-10 h-10 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all duration-200 group">
                         <Bell
                             size={20}
                             strokeWidth={2}
-                            className=""
+                            className="group-hover:scale-110 transition-transform duration-200"
                         />
 
-                        <span className=""></span>
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white"></span>
                     </button>
-                    <div className=''>
-                        <div className=''>
-                            <div className=''>
+                    <div className='flex items-center gap-3 border-l border-slate-200/60'>
+                        <div className='flex items-center gap-3 py-1.5 rounded-xl hover:bg-slate-50 transition-colors duration-200 cursor-pointer group'>
+                            <div className='w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex  items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:shadow-lg group-hover:shadow-emerald-500/30 transition-all duration-200'>
                                 <User size={10} strokeWidth={2.5}/>
                             </div>
                         </div>
-                        <p className="">
+                        <div className='flex flex-col justify-center'>
+                        <p className="text-sm font-semibold text-slate-500">
                             {user?.username || 'User'}
                         </p>
 
-                        <p className="">
+                        <p className="text-xs text-slate-500">
                             {user?.email || 'user@example.com'}
                         </p>
+                        </div>
                     </div>
                 </div>
             </div>

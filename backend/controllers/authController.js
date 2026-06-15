@@ -11,7 +11,7 @@ const generateToken=(id)=>{
 export const register=async (req,res,next)=>{
     try{
         const { username,email,password}=req.body;
-        const userExists=await User.findOne({$or: [{email}]})
+        const userExists=await User.findOne({$or: [{email},{username}]})
         if(userExists){
             return res.status(400).json({
                 success:false,
