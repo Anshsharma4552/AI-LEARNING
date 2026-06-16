@@ -1,5 +1,5 @@
 import axiosInstance from "../utils/axiosinstance";
-import { API_PATHS } from "../utils/apiPaths";
+import { API_PATHS } from "../utils/apiPath";
 
 const getQuizzesForDocument = async (documentId) => {
     try {
