@@ -4,6 +4,8 @@ import documentService from "../../service/documentService";
 import Spinner from "../../components/common/spinner";
 import toast from "react-hot-toast";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import PageHeader from "../../components/common/PageHeader";
+import Tabs from "../../components/common/Tabs";
 
 const DocumentDetailPage = () => {
     const { id } = useParams();
@@ -121,27 +123,24 @@ const DocumentDetailPage = () => {
     }
 
     return (
-        <div className="">
-            <Link to="/documents" className="">
-                <ArrowLeft size={18} />
-                Back to Documents
-            </Link>
-
-            <div className="">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.name}
-                        onClick={() => setActiveTab(tab.name)}
-                        className=""
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+        <div>
+            <div className="mb-4">
+                <Link
+                    to="/documents"
+                    className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
+                >
+                    <ArrowLeft size={16} />
+                    Back to Documents
+                </Link>
             </div>
-
-            <div className="">
-                {tabs.find((tab) => tab.name === activeTab)?.content}
-            </div>
+    
+            <PageHeader title={document.data.title} />
+    
+            <Tabs
+                tabs={tabs}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+            />
         </div>
     );
 };
