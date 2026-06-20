@@ -9,7 +9,7 @@ const Tabs = ({ tabs, activeTab, setActiveTab }) => {
                         <button
                             key={tab.name}
                             onClick={() => setActiveTab(tab.name)}
-                            className={`relative pb-4 px-6 text-sm font-semibold transition-all duration-200 ${
+                            className={`relative pb-4  px-2 md:px-6 text-sm font-semibold transition-all duration-200 ${
                                 activeTab === tab.name
                                     ? "text-emerald-600"
                                     : "text-slate-600 hover:text-slate-900"
@@ -24,20 +24,20 @@ const Tabs = ({ tabs, activeTab, setActiveTab }) => {
                             )}
 
                             {activeTab === tab.name && (
-                                <div className="" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-emerald-50/50 to-transparent rounded-t-xl -z-10" />
                             )}
                         </button>
                     ))}
                 </nav>
             </div>
 
-            <div className="">
+            <div className="py-6">
                 {tabs.map((tab) => {
                     if (tab.name === activeTab) {
                         return (
                             <div
                                 key={tab.name}
-                                className=""
+                                className="animate-in fade-in duration-300"
                             >
                                 {tab.content}
                             </div>
