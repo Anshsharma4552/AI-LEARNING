@@ -17,6 +17,8 @@ const ChatInterface = () => {
     const [initialLoading, setInitialLoading] = useState(true);
     const messagesEndRef = useRef(null);
 
+    const chatStorageKey = documentId ? `chat_history_${documentId}` : null;
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -27,12 +29,12 @@ const ChatInterface = () => {
                 setInitialLoading(false);
                 return;
             }
-    
+
             try {
                 setInitialLoading(true);
-    
+
                 const localHistory = localStorage.getItem(chatStorageKey);
-    
+
                 if (localHistory) {
                     setHistory(JSON.parse(localHistory));
                 } else {
@@ -40,19 +42,23 @@ const ChatInterface = () => {
                     setHistory(response?.data || []);
                 }
             } catch (error) {
-                console.error("Failed to fetch chat history:", error);
+                console.error('Failed to fetch chat history:', error);
                 setHistory([]);
             } finally {
                 setInitialLoading(false);
             }
         };
-    
+
         fetchChatHistory();
-    }, [documentId]);
+    }, [documentId, chatStorageKey]);
 
     useEffect(() => {
+        if (chatStorageKey) {
+            localStorage.setItem(chatStorageKey, JSON.stringify(history));
+        }
+
         scrollToBottom();
-    }, [history]);
+    }, [history, chatStorageKey]);
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
@@ -75,11 +81,9 @@ const ChatInterface = () => {
                 userMessage.content
             );
 
-            console.log("CHAT RESPONSE:", response);
-
             const assistantMessage = {
                 role: 'assistant',
-                content: response?.data?.answer ||  "No answer received",
+                content: response?.data?.answer || 'No answer received',
                 timestamp: new Date(),
                 relevantChunks: response?.data?.relevantChunks || [],
             };
@@ -88,13 +92,14 @@ const ChatInterface = () => {
         } catch (error) {
             console.error('Chat error:', error);
 
-            const errorMessage = {
-                role: 'assistant',
-                content: 'Sorry, I encountered an error. Please try again.',
-                timestamp: new Date(),
-            };
-
-            setHistory((prev) => [...prev, errorMessage]);
+            setHistory((prev) => [
+                ...prev,
+                {
+                    role: 'assistant',
+                    content: 'Sorry, I encountered an error. Please try again.',
+                    timestamp: new Date(),
+                },
+            ]);
         } finally {
             setLoading(false);
         }
@@ -106,7 +111,9 @@ const ChatInterface = () => {
         return (
             <div
                 key={index}
-                className={`flex mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}
+                className={`flex mb-4 ${
+                    isUser ? 'justify-end' : 'justify-start'
+                }`}
             >
                 <div
                     className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm ${
@@ -121,9 +128,10 @@ const ChatInterface = () => {
                         <MarkdownRenderer content={msg.content} />
                     )}
                 </div>
+
                 {isUser && (
-                    <div className=''>
-                        {user?.username?.charAt(0).toUpperCase()||'U'}
+                    <div className="ml-2 w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold">
+                        {user?.username?.charAt(0).toUpperCase() || 'U'}
                     </div>
                 )}
             </div>

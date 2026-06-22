@@ -144,24 +144,27 @@ export const generateSummary = async (req, res, next) => {
             });
         }
 
-        const document = await Document.findOne({
-            _id: documentId,
-            userId,
-            status: "ready",
-        });
+        const document = await Document.findById(documentId);
 
         if (!document) {
             return res.status(404).json({
                 success: false,
-                error: "Document not found or not ready",
+                error: "Document not found",
+            });
+        }
+
+        if (document.userId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                success: false,
+                error: "Not allowed to access this document",
             });
         }
 
         const summary = await geminiService.generateSummary(
-            document.extractedText
+            document.extractedText || ""
         );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {
                 documentId: document._id,
@@ -171,6 +174,7 @@ export const generateSummary = async (req, res, next) => {
             message: "Summary generated successfully",
         });
     } catch (error) {
+        console.error("SUMMARY ERROR:", error);
         next(error);
     }
 };
@@ -289,16 +293,19 @@ export const explainConcept = async (req, res, next) => {
             });
         }
 
-        const document = await Document.findOne({
-            _id: documentId,
-            userId,
-            status: "ready",
-        });
+        const document = await Document.findById(documentId);
 
         if (!document) {
             return res.status(404).json({
                 success: false,
-                error: "Document not found or not ready",
+                error: "Document not found",
+            });
+        }
+
+        if (document.userId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                success: false,
+                error: "Not allowed to access this document",
             });
         }
 
@@ -308,14 +315,17 @@ export const explainConcept = async (req, res, next) => {
             3
         );
 
-        const context = relevantChunks.map((c) => c.content).join("\n\n");
+        const context =
+            relevantChunks.length > 0
+                ? relevantChunks.map((c) => c.content).join("\n\n")
+                : document.extractedText || "";
 
         const explanation = await geminiService.explainConcept(
             concept,
             context
         );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {
                 concept,
