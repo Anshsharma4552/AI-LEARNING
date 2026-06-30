@@ -1,11 +1,15 @@
 import axiosInstance from "../utils/axiosinstance";
 import { API_PATHS } from "../utils/apiPath";
 
-const generateFlashcards = async (documentId, options) => {
+const generateFlashcards = async (documentId, options = {}, title = "") => {
     try {
         const response = await axiosInstance.post(
             API_PATHS.AI.GENERATE_FLASHCARDS,
-            { documentId, ...options }
+            {
+                documentId,
+                title,
+                ...options,
+            }
         );
 
         return response.data;

@@ -5,7 +5,6 @@ import {
     ChevronRight,
     Trash2,
     ArrowLeft,
-    Sparkles,
     Brain,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,9 +22,13 @@ const FlashcardManager = ({ documentId }) => {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
+    const [isFlipped, setIsFlipped] = useState(false);
+
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [setToDelete, setSetToDelete] = useState(null);
+
+    const [flashcardTitle, setFlashcardTitle] = useState("");
 
     const fetchFlashcardSets = async () => {
         if (!documentId) return;
@@ -53,12 +56,23 @@ const FlashcardManager = ({ documentId }) => {
             return;
         }
 
+        if (!flashcardTitle.trim()) {
+            toast.error("Please enter a flashcard set title.");
+            return;
+        }
+
         setGenerating(true);
 
         try {
-            await aiService.generateFlashcards(documentId);
+            await aiService.generateFlashcards(
+                documentId,
+                { count: 10 },
+                flashcardTitle
+            );
+
             toast.success("Flashcards generated successfully!");
-            fetchFlashcardSets();
+            setFlashcardTitle("");
+            await fetchFlashcardSets();
         } catch (error) {
             toast.error(error.message || "Failed to generate flashcards.");
         } finally {
@@ -69,6 +83,8 @@ const FlashcardManager = ({ documentId }) => {
     const handleNextCard = () => {
         if (!selectedSet?.cards?.length) return;
 
+        setIsFlipped(false);
+
         setCurrentCardIndex(
             (prevIndex) => (prevIndex + 1) % selectedSet.cards.length
         );
@@ -76,6 +92,8 @@ const FlashcardManager = ({ documentId }) => {
 
     const handlePrevCard = () => {
         if (!selectedSet?.cards?.length) return;
+
+        setIsFlipped(false);
 
         setCurrentCardIndex(
             (prevIndex) =>
@@ -86,7 +104,6 @@ const FlashcardManager = ({ documentId }) => {
 
     const handleReview = async (index) => {
         const currentCard = selectedSet?.cards?.[currentCardIndex];
-
         if (!currentCard) return;
 
         try {
@@ -98,11 +115,47 @@ const FlashcardManager = ({ documentId }) => {
     };
 
     const handleToggleStar = async (cardId) => {
+        if (!cardId) return;
+
         try {
-            await flashcardService.toggleStar(cardId);
-            fetchFlashcardSets();
+            const response = await flashcardService.toggleStar(cardId);
+            const updatedCard = response?.data;
+
+            setFlashcardSets((prevSets) =>
+                prevSets.map((set) => ({
+                    ...set,
+                    cards: set.cards.map((card) =>
+                        card._id === cardId
+                            ? {
+                                  ...card,
+                                  isStarred:
+                                      updatedCard?.isStarred ?? !card.isStarred,
+                              }
+                            : card
+                    ),
+                }))
+            );
+
+            setSelectedSet((prevSet) => {
+                if (!prevSet) return prevSet;
+
+                return {
+                    ...prevSet,
+                    cards: prevSet.cards.map((card) =>
+                        card._id === cardId
+                            ? {
+                                  ...card,
+                                  isStarred:
+                                      updatedCard?.isStarred ?? !card.isStarred,
+                              }
+                            : card
+                    ),
+                };
+            });
+
+            toast.success("Updated important flashcard.");
         } catch (error) {
-            toast.error("Failed to update flashcard.");
+            toast.error(error.message || "Failed to update flashcard.");
         }
     };
 
@@ -122,7 +175,8 @@ const FlashcardManager = ({ documentId }) => {
             toast.success("Flashcard set deleted.");
             setIsDeleteModalOpen(false);
             setSetToDelete(null);
-            fetchFlashcardSets();
+            setSelectedSet(null);
+            await fetchFlashcardSets();
         } catch (error) {
             toast.error("Failed to delete flashcard set.");
         } finally {
@@ -133,6 +187,13 @@ const FlashcardManager = ({ documentId }) => {
     const handleSelectSet = (set) => {
         setSelectedSet(set);
         setCurrentCardIndex(0);
+        setIsFlipped(false);
+    };
+
+    const handleBackToSets = () => {
+        setSelectedSet(null);
+        setCurrentCardIndex(0);
+        setIsFlipped(false);
     };
 
     const renderFlashcardViewer = () => {
@@ -141,7 +202,7 @@ const FlashcardManager = ({ documentId }) => {
         return (
             <div>
                 <button
-                    onClick={() => setSelectedSet(null)}
+                    onClick={handleBackToSets}
                     className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-6"
                 >
                     <ArrowLeft className="w-4 h-4" />
@@ -161,6 +222,8 @@ const FlashcardManager = ({ documentId }) => {
                 {currentCard && (
                     <Flashcard
                         flashcard={currentCard}
+                        isFlipped={isFlipped}
+                        setIsFlipped={setIsFlipped}
                         onToggleStar={handleToggleStar}
                     />
                 )}
@@ -202,33 +265,43 @@ const FlashcardManager = ({ documentId }) => {
 
         return (
             <div>
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-semibold text-slate-900">
-                            Flashcards
-                        </h2>
-                        <p className="text-sm text-slate-500">
-                            Practice with AI-generated flashcards.
-                        </p>
+                <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="text-xl font-semibold text-slate-900">
+                                Flashcards
+                            </h2>
+                            <p className="text-sm text-slate-500">
+                                Practice with AI-generated flashcards.
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={handleGenerateFlashcards}
+                            disabled={generating}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
+                        >
+                            {generating ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="w-4 h-4" />
+                                    Generate
+                                </>
+                            )}
+                        </button>
                     </div>
 
-                    <button
-                        onClick={handleGenerateFlashcards}
-                        disabled={generating}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:opacity-50"
-                    >
-                        {generating ? (
-                            <>
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Generating...
-                            </>
-                        ) : (
-                            <>
-                                <Plus className="w-4 h-4" />
-                                Generate
-                            </>
-                        )}
-                    </button>
+                    <input
+                        type="text"
+                        value={flashcardTitle}
+                        onChange={(e) => setFlashcardTitle(e.target.value)}
+                        placeholder="Enter flashcard set title"
+                        className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
                 </div>
 
                 {flashcardSets.length === 0 ? (
@@ -251,6 +324,7 @@ const FlashcardManager = ({ documentId }) => {
                                         <h3 className="font-semibold text-slate-900">
                                             {set.title || "Untitled Flashcard Set"}
                                         </h3>
+
                                         <p className="text-sm text-slate-500 mt-1">
                                             {set.cards?.length || 0} cards
                                             {set.createdAt &&

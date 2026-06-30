@@ -11,62 +11,65 @@ const getUserId = (req) => {
 
 export const generateFlashcards = async (req, res, next) => {
     try {
-        const userId = getUserId(req);
-        const { documentId, count = 10 } = req.body;
-
-        if (!userId) {
-            return res.status(401).json({
-                success: false,
-                error: "Not authorized",
-            });
-        }
-
-        if (!documentId) {
-            return res.status(400).json({
-                success: false,
-                error: "Please provide documentId",
-            });
-        }
-
-        const document = await Document.findOne({
-            _id: documentId,
-            userId,
-            status: "ready",
+      const userId = getUserId(req);
+      const { documentId, count = 10, title } = req.body;
+  
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "Not authorized",
         });
-
-        if (!document) {
-            return res.status(404).json({
-                success: false,
-                error: "Document not found or not ready",
-            });
-        }
-
-        const cards = await geminiService.generateFlashcards(
-            document.extractedText,
-            parseInt(count)
-        );
-
-        const flashcardSet = await Flashcard.create({
-            userId,
-            documentId: document._id,
-            cards: cards.map((card) => ({
-                question: card.question,
-                answer: card.answer,
-                difficulty: card.difficulty,
-                reviewCount: 0,
-                isStarred: false,
-            })),
+      }
+  
+      if (!documentId) {
+        return res.status(400).json({
+          success: false,
+          error: "Please provide documentId",
         });
-
-        res.status(201).json({
-            success: true,
-            data: flashcardSet,
-            message: "Flashcards generated successfully",
+      }
+  
+      const document = await Document.findOne({
+        _id: documentId,
+        userId,
+        status: "ready",
+      });
+  
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          error: "Document not found or not ready",
         });
+      }
+  
+      const cards = await geminiService.generateFlashcards(
+        document.extractedText,
+        parseInt(count)
+      );
+  
+      const flashcardSet = await Flashcard.create({
+        userId,
+        documentId: document._id,
+  
+        title: title?.trim() || `${document.title} Flashcards`,
+  
+        cards: cards.map((card) => ({
+          question: card.question,
+          answer: card.answer,
+          difficulty: card.difficulty || "medium",
+          reviewCount: 0,
+          isStarred: false,
+        })),
+      });
+  
+      res.status(201).json({
+        success: true,
+        data: flashcardSet,
+        message: "Flashcards generated successfully",
+      });
     } catch (error) {
-        next(error);
+      next(error);
     }
-};
+  };
 
 export const generateQuiz = async (req, res, next) => {
     try {
