@@ -12,9 +12,21 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemini-2.0-flash-lite";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getErrorMessage = (error, fallback) => {
+  if (error?.status === 429) {
+    return "Gemini quota limit reached. Please wait and try again later.";
+  }
+
+  if (error?.status === 503) {
+    return "Gemini is currently busy. Please try again after a few seconds.";
+  }
+
+  return fallback;
+};
 
 const generateWithRetry = async (prompt, retries = 3) => {
   let lastError;
@@ -32,7 +44,6 @@ const generateWithRetry = async (prompt, retries = 3) => {
 
       const isRetryable =
         error?.status === 503 ||
-        error?.status === 429 ||
         error?.message?.includes("UNAVAILABLE") ||
         error?.message?.includes("high demand");
 
@@ -41,7 +52,7 @@ const generateWithRetry = async (prompt, retries = 3) => {
       }
 
       console.log(`Gemini retry ${attempt}/${retries}...`);
-      await sleep(2000 * attempt);
+      await sleep(3000 * attempt);
     }
   }
 
@@ -49,9 +60,9 @@ const generateWithRetry = async (prompt, retries = 3) => {
 };
 
 export const generateFlashcards = async (text, count = 10) => {
-  const prompt = `Generate exactly ${count} educational flashcards from the following text.
+  const prompt = `Generate exactly ${count} educational flashcards from this text.
 
-Return ONLY in this format:
+Return ONLY this format:
 
 Q: question
 A: answer
@@ -59,24 +70,13 @@ D: easy
 
 ___
 
-Q: question
-A: answer
-D: medium
-
-___
-
-Q: question
-A: answer
-D: hard
-
 Rules:
-- Do not use markdown.
-- Do not add extra headings.
-- Difficulty must be only easy, medium, or hard.
-- Generate useful exam-style flashcards.
+- No markdown.
+- No headings.
+- D must be easy, medium, or hard.
 
 Text:
-${String(text || "").substring(0, 15000)}`;
+${String(text || "").substring(0, 6000)}`;
 
   try {
     const generatedText = await generateWithRetry(prompt);
@@ -86,13 +86,11 @@ ${String(text || "").substring(0, 15000)}`;
       .map((block) => block.trim())
       .filter(Boolean)
       .map((block) => {
-        const lines = block.split("\n");
-
         let question = "";
         let answer = "";
         let difficulty = "medium";
 
-        for (const line of lines) {
+        block.split("\n").forEach((line) => {
           const trimmed = line.trim();
 
           if (trimmed.startsWith("Q:")) {
@@ -101,78 +99,66 @@ ${String(text || "").substring(0, 15000)}`;
             answer = trimmed.replace(/^A:\s*/, "").trim();
           } else if (trimmed.startsWith("D:")) {
             const diff = trimmed.replace(/^D:\s*/, "").trim().toLowerCase();
-
-            if (["easy", "medium", "hard"].includes(diff)) {
-              difficulty = diff;
-            }
+            if (["easy", "medium", "hard"].includes(diff)) difficulty = diff;
           }
-        }
+        });
 
-        return {
-          question,
-          answer,
-          difficulty,
-        };
+        return { question, answer, difficulty };
       })
       .filter((card) => card.question && card.answer)
       .slice(0, count);
 
-    if (cards.length === 0) {
+    if (!cards.length) {
       throw new Error("Gemini returned no valid flashcards");
     }
 
     return cards;
   } catch (error) {
     console.error("Gemini flashcard error:", error);
-    throw new Error(
-      error?.status === 503
-        ? "Gemini is currently busy. Please try again after a few seconds."
-        : "Failed to generate flashcards"
-    );
+    throw new Error(getErrorMessage(error, "Failed to generate flashcards"));
   }
 };
 
 export const generateQuiz = async (text, numQuestions = 5) => {
-  const prompt = `Generate exactly ${numQuestions} multiple choice questions.
+  const prompt = `Generate exactly ${numQuestions} multiple choice questions from this text.
 
-Return ONLY in this format:
+Return ONLY this format:
 
 Q: question
 O1: option
 O2: option
 O3: option
 O4: option
-C: correct option
+C: correct option text
 E: explanation
 D: medium
 
 ___
 
 Rules:
-- Do not use markdown.
-- Correct option must exactly match one of O1, O2, O3, O4.
-- Difficulty must be only easy, medium, or hard.
+- No markdown.
+- No headings.
+- C must exactly match one of O1, O2, O3, O4.
+- D must be easy, medium, or hard.
 
 Text:
-${String(text || "").substring(0, 15000)}`;
+${String(text || "").substring(0, 6000)}`;
 
   try {
     const generatedText = await generateWithRetry(prompt);
 
-    return generatedText
+    const questions = generatedText
       .split("___")
       .map((block) => block.trim())
       .filter(Boolean)
       .map((block) => {
-        const lines = block.split("\n");
-
         let question = "";
         const options = [];
         let correctAnswer = "";
         let explanation = "";
         let difficulty = "medium";
 
-        for (const line of lines) {
+        block.split("\n").forEach((line) => {
           const trimmed = line.trim();
 
           if (trimmed.startsWith("Q:")) {
@@ -185,12 +171,9 @@ ${String(text || "").substring(0, 15000)}`;
             explanation = trimmed.replace(/^E:\s*/, "").trim();
           } else if (trimmed.startsWith("D:")) {
             const diff = trimmed.replace(/^D:\s*/, "").trim().toLowerCase();
-
-            if (["easy", "medium", "hard"].includes(diff)) {
-              difficulty = diff;
-            }
+            if (["easy", "medium", "hard"].includes(diff)) difficulty = diff;
           }
-        }
+        });
 
         return {
           question,
@@ -200,15 +183,23 @@ ${String(text || "").substring(0, 15000)}`;
           difficulty,
         };
       })
-      .filter((q) => q.question && q.options.length === 4 && q.correctAnswer)
+      .filter(
+        (q) =>
+          q.question &&
+          q.options.length === 4 &&
+          q.correctAnswer &&
+          q.options.includes(q.correctAnswer)
+      )
       .slice(0, numQuestions);
+
+    if (!questions.length) {
+      throw new Error("Gemini returned no valid quiz questions");
+    }
+
+    return questions;
   } catch (error) {
     console.error("Gemini quiz error:", error);
-    throw new Error(
-      error?.status === 503
-        ? "Gemini is currently busy. Please try again after a few seconds."
-        : "Failed to generate quiz questions"
-    );
+    throw new Error(getErrorMessage(error, "Failed to generate quiz questions"));
   }
 };
 
@@ -218,20 +209,15 @@ export const generateSummary = async (text) => {
 Rules:
 - Use simple language.
 - Include important points.
-- Do not say the document text was not provided.
 
 Text:
-${String(text || "").substring(0, 20000)}`;
+${String(text || "").substring(0, 8000)}`;
 
   try {
     return await generateWithRetry(prompt);
   } catch (error) {
     console.error("Gemini summary error:", error);
-    throw new Error(
-      error?.status === 503
-        ? "Gemini is currently busy. Please try again after a few seconds."
-        : "Failed to generate summary"
-    );
+    throw new Error(getErrorMessage(error, "Failed to generate summary"));
   }
 };
 
@@ -257,13 +243,13 @@ export const chatWithContext = async (question, chunks = []) => {
       return "No readable document content found to answer this question.";
     }
 
-    const prompt = `Based on the following document context, answer the user's question.
+    const prompt = `Based on the document context, answer the user's question.
 
-If the answer is not available in the context, say:
+If answer is not available, say:
 "The answer is not available in the document context."
 
 Context:
-${context.substring(0, 8000)}
+${context.substring(0, 5000)}
 
 Question:
 ${question}
@@ -273,30 +259,22 @@ Answer:`;
     return await generateWithRetry(prompt);
   } catch (error) {
     console.error("Gemini chat error:", error);
-    throw new Error(
-      error?.status === 503
-        ? "Gemini is currently busy. Please try again after a few seconds."
-        : "Failed to process chat request"
-    );
+    throw new Error(getErrorMessage(error, "Failed to process chat request"));
   }
 };
 
 export const explainConcept = async (concept, context) => {
   const prompt = `Explain "${concept}" using this context.
 
-Use simple language and examples where helpful.
+Use simple language and examples.
 
 Context:
-${String(context || "").substring(0, 10000)}`;
+${String(context || "").substring(0, 6000)}`;
 
   try {
     return await generateWithRetry(prompt);
   } catch (error) {
     console.error("Gemini explain error:", error);
-    throw new Error(
-      error?.status === 503
-        ? "Gemini is currently busy. Please try again after a few seconds."
-        : "Failed to explain concept"
-    );
+    throw new Error(getErrorMessage(error, "Failed to explain concept"));
   }
 };
